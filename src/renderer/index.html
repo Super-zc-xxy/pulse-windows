@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pulse</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app" class="dock-right">
+    <!-- Slim sliver visible when collapsed -->
+    <div id="edge-sliver" class="edge-sliver" title="鼠标靠近展开 Pulse">
+      <div class="sliver-glow"></div>
+    </div>
+
+    <!-- Flyout detailed inspection card -->
+    <div id="detail-card" class="detail-card hidden">
+      <div class="card-header">
+        <div class="header-left">
+          <div id="card-icon" class="provider-avatar"></div>
+          <div class="header-titles">
+            <span id="card-title" class="title">Claude Code</span>
+            <span id="card-subtitle" class="subtitle">5-hour Session</span>
+          </div>
+        </div>
+        <div id="card-badge" class="status-badge ok">正常</div>
+      </div>
+
+      <div class="card-hero">
+        <div class="hero-left">
+          <div id="card-percent" class="hero-number">42%</div>
+          <div id="card-percent-label" class="hero-sublabel">已消耗额度</div>
+        </div>
+        <div class="hero-right">
+          <div class="stat-row">
+            <span class="label">重置倒计时</span>
+            <span id="card-reset-time" class="val">2h 14m</span>
+          </div>
+          <div class="stat-row">
+            <span class="label">估算开销</span>
+            <span id="card-cost" class="val highlight">$2.84 est.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-divider"></div>
+
+      <!-- Breakdown pool items -->
+      <div class="section-title">配额池明细</div>
+      <div id="card-breakdown" class="breakdown-list">
+        <!-- populated dynamically -->
+      </div>
+
+      <!-- Burn-rate alert banner -->
+      <div id="card-burnrate" class="burnrate-banner">
+        <div class="burn-icon">⚡</div>
+        <div class="burn-content">
+          <div id="burn-title" class="burn-title">消耗速率平稳</div>
+          <div id="burn-eta" class="burn-eta">当前速度可平稳撑过本周期</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vertical Floating Rail -->
+    <div id="rail" class="rail-container">
+      <div class="rail-header">
+        <div class="brand-pulse-dot" title="Pulse 运行中"></div>
+      </div>
+
+      <div id="rings-list" class="rings-list">
+        <!-- Rings populated dynamically -->
+      </div>
+
+      <div class="rail-footer">
+        <button id="btn-settings" class="btn-icon" title="设置与账号">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Pulse 偏好设置</h3>
+          <button id="modal-close" class="btn-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>屏幕停靠位置</label>
+            <div class="radio-group">
+              <label><input type="radio" name="dockSide" value="right"> 靠右边缘</label>
+              <label><input type="radio" name="dockSide" value="left"> 靠左边缘</label>
+              <label><input type="radio" name="dockSide" value="top"> 靠上边缘</label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>圆环数值模式</label>
+            <div class="radio-group">
+              <label><input type="radio" name="countdownMode" value="used"> 显示已用 (% used)</label>
+              <label><input type="radio" name="countdownMode" value="left"> 显示剩余 (% left)</label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>数据源模式</label>
+            <div class="radio-group">
+              <label><input type="radio" name="demoMode" value="true"> 演示模拟模式 (Mock)</label>
+              <label><input type="radio" name="demoMode" value="false"> 真实本地数据 (Local CLI)</label>
+            </div>
+          </div>
+          <div class="form-group" style="margin-top: 16px; border-top: 1px solid var(--border-subtle); padding-top: 12px;">
+            <label style="color: var(--accent-cyan); font-weight: 600;">启用的模型与工具来源</label>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 12px; color: var(--text-main);">Claude Code <span style="font-size: 10px; color: var(--text-dim);">(读取 ~/.claude)</span></span>
+              <label><input type="checkbox" id="chk-claude"> 启用</label>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 12px; color: var(--text-main);">Codex (OpenAI) <span style="font-size: 10px; color: var(--text-dim);">(读取 auth.json)</span></span>
+              <label><input type="checkbox" id="chk-codex"> 启用</label>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 12px; color: var(--text-main);">Cursor Editor</span>
+              <label><input type="checkbox" id="chk-cursor"> 启用</label>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-size: 12px; color: var(--text-main);">Antigravity</span>
+              <label><input type="checkbox" id="chk-antigravity"> 启用</label>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span style="font-size: 12px; color: var(--text-main);">Kimi Code (Moonshot)</span>
+              <label><input type="checkbox" id="chk-kimi"> 启用</label>
+            </div>
+            <input type="password" id="input-kimi-key" placeholder="输入 Kimi API Key (sk-...)" class="form-input" style="margin-bottom: 8px;">
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span style="font-size: 12px; color: var(--text-main);">GLM Coding Plan (智谱)</span>
+              <label><input type="checkbox" id="chk-glm"> 启用</label>
+            </div>
+            <input type="password" id="input-glm-key" placeholder="输入智谱 GLM API Key" class="form-input" style="margin-bottom: 8px;">
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span style="font-size: 12px; color: var(--text-main);">DeepSeek</span>
+              <label><input type="checkbox" id="chk-deepseek"> 启用</label>
+            </div>
+            <input type="password" id="input-deepseek-key" placeholder="输入 DeepSeek API Key" class="form-input">
+          </div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+          <button id="btn-modal-quit" class="btn-quit" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); padding: 5px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;">退出 Pulse</button>
+          <button id="btn-save-settings" class="btn-primary">保存生效</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
