@@ -22,13 +22,11 @@ test('bridge forwards commands and cancels pending event registration', async ()
   assert.equal(received, 1); assert.equal(stopped, 1);
 });
 
-test('build inserts bridge before renderer without modifying renderer source', async () => {
+test('Vite build emits both pages with the bridge before React', async () => {
   const {execFileSync}=require('node:child_process');
-  const before=fs.readFileSync('src/renderer/index.html','utf8');
-  execFileSync(process.execPath,['scripts/build-frontend.mjs']);
+  execFileSync('corepack',['pnpm','build:frontend']);
   const built=fs.readFileSync('dist/frontend/index.html','utf8');
-  assert.ok(built.indexOf('src="pulse.js"')<built.indexOf('src="app.js"'));
-  assert.equal(fs.readFileSync('src/renderer/index.html','utf8'),before);
+  assert.ok(built.indexOf('src="./pulse.js"')<built.indexOf('type="module"'));
   assert.ok(fs.existsSync('dist/frontend/accounts.html'));
 });
 

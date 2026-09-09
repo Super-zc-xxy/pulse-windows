@@ -18,3 +18,11 @@
 - 未勾选条目仍有真实账号、平台或协议验收缺口；详见 docs/verification.md。未将首次源码实现等同最终验收。
 
 - macOS arm64 release .app / DMG 已构建，未签名、公证或发布；Windows/Linux 仍待验证。
+
+## React 前端重构
+
+- [x] Vite/React 双入口基础：TypeScript、ESM、桥接类型与构建产物；验证 `pnpm typecheck`、`pnpm build:frontend`。
+- [x] 主悬浮窗迁移：保持三向停靠、折叠、指标推送、详情定位和设置入口；验证前端契约测试与 Tauri 主窗。
+- [x] shadcn 设置窗：通用设置和平台设置全部使用组件，默认仅展开第一平台，不展示额度数据；验证保存成功/失败、认证操作和键盘交互。
+- [ ] 前端完成检查：`pnpm test`、`pnpm typecheck`、`pnpm build:frontend`、`pnpm build`，记录实际窗口证据。
+  - 前三项、release `--no-bundle`、debug `.app` 和实际隔离窗口已通过；默认 `pnpm build` 仍在已知的 x64 DMG 封装脚本失败，明确 arm64 CI 构建受本机 x64 Node / arm64 Rust 下嵌套 pnpm 版本检查阻断。

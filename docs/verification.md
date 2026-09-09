@@ -2,6 +2,15 @@
 
 日期：2026-09-08。以下是开发现场记录，不代表 SPEC 已全部完成。
 
+## 2026-09-09 React 前端重构
+
+- 主悬浮窗与设置窗已迁移到 React + TypeScript，由 Vite 8 多页面构建；`pulse.js` 在构建产物中先于 React 模块执行。
+- 设置窗通用控件和平台设置使用项目内 shadcn/ui 源码组件。平台使用可多项展开的 Accordion，首次只展开第一项。
+- 设置窗不再请求 `getProviderStatus`，不展示额度、余额或配额窗口；保留凭据是否已配置、登录进度和保存错误等设置反馈。
+- `pnpm test` 9 项、`pnpm typecheck`、生产依赖审计（无已知漏洞）和 Tauri release `--no-bundle` 构建通过；debug `.app` 构建通过。
+- 隔离 `.app` 实际检查：设置页首次只展开 Claude Code，其余六项收起；Codex 可独立展开且 Claude 保持展开，Claude 可再独立收起。设置页无额度/余额数据。主窗可由键盘展开，五个额度环及 Claude 详情卡正常显示。
+- 默认 `pnpm build` 完成前端和 Rust release 编译后，仍在已知的 x64 DMG `bundle_dmg.sh` 失败。明确 arm64 CI 构建又被本机 x64 Node / arm64 Rust 场景下的嵌套 pnpm 11.0.6 与项目 11.20.0 检查阻断；未把包封装标记为通过。
+
 已执行：
 
 - JS 桥命令/事件取消竞态自检通过。

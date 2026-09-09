@@ -1,6 +1,6 @@
 # Pulse 跨平台 Tauri 后端迁移
 
-状态：2026-09-08 用户已批准开发。Tauri 主体迁移已实现，GLM/DeepSeek 登录协议、真实账号及三平台完整验收尚未完成；现场证据见 docs/verification.md。
+状态：2026-09-08 用户已批准开发。Tauri 主体迁移已实现，GLM/DeepSeek 登录协议、真实账号及三平台完整验收尚未完成；现场证据见 docs/verification.md。后续提出的 React 前端重构见 `SPEC-frontend-react.md`，批准后覆盖本文“保持 renderer 原样”和“不增加新前端框架”两项旧约束。
 
 ## 目标与范围
 

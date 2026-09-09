@@ -1,6 +1,6 @@
 # Pulse Desktop
 
-AI 编程额度屏幕边缘监视器。桌面壳、配置、认证和数据查询使用 Tauri 2.11.5 / Rust；原有 `src/renderer` HTML/CSS/JS 保持不变，通过 `window.pulseAPI` 连接后端。
+AI 编程额度屏幕边缘监视器。桌面壳、配置、认证和数据查询使用 Tauri 2.11.5 / Rust；界面使用 React、TypeScript、Vite 和 shadcn/ui，通过 `window.pulseAPI` 连接后端。
 
 **当前为迁移开发版，尚未达到 SPEC 全部验收条件。** GLM / DeepSeek 登录尚未实现；已接入的认证和数据源尚未进行真实账号验收。Windows/Linux 尚未运行验证。
 
@@ -15,6 +15,7 @@ pnpm dev
 
 ```sh
 pnpm test
+pnpm typecheck
 pnpm build:frontend
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
 cargo test --manifest-path src-tauri/Cargo.toml --locked
@@ -32,11 +33,11 @@ pnpm exec tauri build --target aarch64-apple-darwin --no-sign
 
 macOS CI 产物使用 ad-hoc 签名，但未使用 Apple Developer 证书及公证；Windows 产物也未做 Authenticode 签名。正式对外分发前仍需配置对应平台的签名凭据。
 
-运行安装后的应用不需要 Node/Python。开发脚本只复制静态页面并插入兼容桥，不引入前端框架。修改前端文件后重新运行 `pnpm dev`。
+运行安装后的应用不需要 Node/Python。Vite 同时构建主悬浮窗与设置窗，并保证兼容桥先于 React 入口加载。修改前端文件后重新运行 `pnpm dev`。
 
 ## 使用与账户
 
-监控栏齿轮打开原有偏好设置；托盘的“账户与数据状态”打开独立账户窗口，配置 Key、启动/取消登录、清除凭据并查看余额或查询失败原因。新安装默认真实数据模式；需要预览界面时可在偏好设置主动启用演示模式。
+监控栏齿轮和托盘的“偏好设置”打开独立设置窗口，可配置显示方式、启用平台、保存 Key、启动/取消登录及清除凭据。平台设置可独立展开，默认只展开第一项。设置页不展示额度或余额；配额仍由主悬浮窗呈现。新安装默认真实数据模式；需要预览界面时可在设置中主动启用演示模式。
 
 | 渠道 | 已实现路径 | 验证边界 |
 | --- | --- | --- |
@@ -50,7 +51,7 @@ macOS CI 产物使用 ad-hoc 签名，但未使用 Apple Developer 证书及公�
 
 Cursor 支持默认系统目录，也可在账户页指定用户数据根目录；其下固定读取 `User/globalStorage/state.vscdb`。不读取浏览器 Cookie 库。Antigravity 必须已启动并登录，遍历候选进程/端口，限制总时间预算；不猜固定端口、不保存 CSRF token。
 
-旧配额环只展示有明确百分比的窗口。余额、未登录、无权限、接口不兼容等完整状态在账户页显示；真实模式不会回退演示数据，也不会把“存在凭据”当作连接成功。
+旧配额环只展示有明确百分比的窗口。设置页仅显示是否配置凭据等设置反馈，不承担额度数据展示；真实模式不会回退演示数据，也不会把“存在凭据”当作连接成功。
 
 ## 配置与迁移
 
@@ -64,15 +65,17 @@ Electron、旧 Python 采集器及会终止所有 Electron 程序的旧脚本已
 
 ## 接口与结构
 
-- `src/renderer`：保留的监控界面。
+- `index.html`、`accounts.html`：Vite 的主悬浮窗和设置窗入口。
+- `src/renderer`：React 主悬浮窗、额度环和详情卡。
 - `src/bridge/pulse.js`：Promise 命令与事件订阅适配；立即返回取消函数，处理异步注册竞态。
-- `src/accounts`：账户和数据状态展示，不执行认证协议或网络查询。
+- `src/accounts`：基于 shadcn/ui 的显示与平台设置，不执行认证协议或额度查询。
+- `src/components/ui`：项目实际使用的 shadcn/ui 源码组件。
 - `src-tauri/src/config.rs`：配置模型、校验与保存。
 - `src-tauri/src/auth`：PKCE/设备码、登录尝试、取消/超时、令牌刷新；`auth.rs` 管理系统凭据。
 - `src-tauri/src/providers`：Cursor/Antigravity 原生适配；`providers.rs` 规范化所有渠道指标。
 - `src-tauri/src/desktop.rs`：窗口、停靠和托盘；`lib.rs` 注册命令并调度刷新。
 
-后端业务不依赖 DOM。React/Vue 等前端只需使用同一命令契约；无需改认证及数据源代码。完整规格见 [SPEC.md](SPEC.md)，数据来源与内部接口限制见 [调研报告](docs/provider-research.md)。
+后端业务不依赖 DOM。React 前端只使用同一命令契约，无需改认证及数据源代码。后端完整规格见 [SPEC.md](SPEC.md)，前端规格见 [SPEC-frontend-react.md](SPEC-frontend-react.md)，数据来源与内部接口限制见 [调研报告](docs/provider-research.md)。
 
 ## 隔离桌面检查
 

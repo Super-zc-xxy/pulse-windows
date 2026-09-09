@@ -4,8 +4,9 @@
   "version": "1.0.0",
   "identifier": "com.pulse.desktop",
   "build": {
-    "beforeDevCommand": "node scripts/build-frontend.mjs",
-    "beforeBuildCommand": "node scripts/build-frontend.mjs",
+    "beforeDevCommand": "corepack pnpm dev:web",
+    "beforeBuildCommand": "corepack pnpm build:frontend",
+    "devUrl": "http://127.0.0.1:1420",
     "frontendDist": "../dist/frontend"
   },
   "app": {
