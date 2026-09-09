@@ -78,7 +78,7 @@ jobs:
             args: ""
           - os: windows-latest
             target: ""
-            args: ""
+            args: --bundles nsis
     runs-on: ${{ matrix.os }}
     env:
       APPLE_SIGNING_IDENTITY: "-"
