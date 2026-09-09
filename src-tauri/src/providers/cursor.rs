@@ -20,8 +20,10 @@ fn token(path: &Path) -> Result<String, String> {
             }
             ValueRef::Blob(bytes) if bytes.len() % 2 == 0 => String::from_utf16(
                 &bytes
-                    .chunks_exact(2)
-                    .map(|b| u16::from_le_bytes([b[0], b[1]]))
+                    .as_chunks::<2>()
+                    .0
+                    .iter()
+                    .map(|bytes| u16::from_le_bytes(*bytes))
                     .collect::<Vec<_>>(),
             )
             .map_err(|_| rusqlite::Error::InvalidQuery),
