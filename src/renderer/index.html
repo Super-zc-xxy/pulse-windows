@@ -8,6 +8,7 @@
 </head>
 <body>
   <div id="app" class="dock-right">
+    <div id="settings-feedback" role="status" aria-live="polite" hidden></div>
     <!-- Slim sliver visible when collapsed -->
     <div id="edge-sliver" class="edge-sliver" title="鼠标靠近展开 Pulse">
       <div class="sliver-glow"></div>
@@ -37,7 +38,7 @@
             <span id="card-reset-time" class="val">2h 14m</span>
           </div>
           <div class="stat-row">
-            <span class="label">估算开销</span>
+            <span id="card-cost-label" class="label">估算开销</span>
             <span id="card-cost" class="val highlight">$2.84 est.</span>
           </div>
         </div>
@@ -115,12 +116,12 @@
             <label style="color: var(--accent-cyan); font-weight: 600;">启用的模型与工具来源</label>
             
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <span style="font-size: 12px; color: var(--text-main);">Claude Code <span style="font-size: 10px; color: var(--text-dim);">(读取 ~/.claude)</span></span>
+              <span style="font-size: 12px; color: var(--text-main);">Claude Code <span style="font-size: 10px; color: var(--text-dim);">(在账户页登录)</span></span>
               <label><input type="checkbox" id="chk-claude"> 启用</label>
             </div>
             
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <span style="font-size: 12px; color: var(--text-main);">Codex (OpenAI) <span style="font-size: 10px; color: var(--text-dim);">(读取 auth.json)</span></span>
+              <span style="font-size: 12px; color: var(--text-main);">Codex (OpenAI) <span style="font-size: 10px; color: var(--text-dim);">(在账户页登录)</span></span>
               <label><input type="checkbox" id="chk-codex"> 启用</label>
             </div>
             

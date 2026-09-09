@@ -20,7 +20,7 @@ let currentConfig = {
   dockSide: 'right',
   countdownMode: 'used',
   autoCollapse: true,
-  demoMode: true
+  demoMode: false
 };
 
 let collapseTimer = null;
@@ -126,6 +126,19 @@ function renderRings() {
   });
 }
 
+// Formatting only: timestamps and quota normalization come from the backend.
+function formatReset(value) {
+  if (value === null || value === undefined || value === '') return '未提供';
+  const numeric = typeof value === 'number' || /^\d+(\.\d+)?$/.test(value);
+  const date = new Date(numeric ? Number(value) * (Number(value) < 1e12 ? 1000 : 1) : value);
+  if (!Number.isFinite(date.getTime())) return '未提供';
+  const minutes = Math.ceil((date.getTime() - Date.now()) / 60000);
+  if (minutes <= 0) return '等待刷新';
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor(minutes % 1440 / 60);
+  return `${days ? days + '天 ' : ''}${hours ? hours + '小时 ' : ''}${minutes % 60}分钟`;
+}
+
 // Show Detail Popout Card
 function showDetailCard(index, targetElement) {
   activeItemIndex = index;
@@ -138,19 +151,22 @@ function showDetailCard(index, targetElement) {
 
   document.getElementById('card-icon').innerHTML = ICONS[m.icon] || ICONS.default;
   document.getElementById('card-title').textContent = m.name;
-  document.getElementById('card-subtitle').textContent = m.primaryQuota?.label || '配额监控';
+  document.getElementById('card-subtitle').textContent = [m.plan, m.primaryQuota?.label || '配额监控'].filter(Boolean).join(' · ');
 
   const badgeEl = document.getElementById('card-badge');
   badgeEl.className = `status-badge ${m.status}`;
-  badgeEl.textContent = m.status === 'ok' ? '状态健康' : (m.status === 'warning' ? '额度偏紧' : '极度告急');
+  badgeEl.textContent = m.status === 'limited' ? '已达限额' : m.status === 'ok' ? '状态健康' : (m.status === 'warning' ? '额度偏紧' : '极度告急');
 
   const percentEl = document.getElementById('card-percent');
   percentEl.textContent = `${displayPercent}%`;
   percentEl.style.color = color;
   document.getElementById('card-percent-label').textContent = isLeftMode ? '剩余可用配额' : '已消耗配额';
 
-  document.getElementById('card-reset-time').textContent = m.primaryQuota?.resetTime || '--';
-  document.getElementById('card-cost').textContent = m.estimatedCost || '--';
+  document.getElementById('card-reset-time').textContent = formatReset(m.primaryQuota?.resetTime);
+  document.getElementById('card-cost-label').textContent = m.id === 'codex' ? '积分余额' : '估算开销';
+  document.getElementById('card-cost').textContent = m.id === 'codex'
+    ? (m.creditsUnlimited === true ? '不限量' : m.creditBalance ?? '未提供')
+    : m.estimatedCost || '未提供';
 
   // Breakdown pools
   const breakdownListEl = document.getElementById('card-breakdown');
@@ -170,6 +186,10 @@ function showDetailCard(index, targetElement) {
         <div class="pool-bar-fill" style="width: ${percent}%; background: ${color}"></div>
       </div>
     `;
+    const reset = document.createElement('div');
+    reset.className = 'pool-reset';
+    reset.textContent = `重置：${formatReset(b.reset)}`;
+    row.appendChild(reset);
     breakdownListEl.appendChild(row);
   });
 
@@ -205,7 +225,7 @@ function hideDetailCard() {
 // Settings Modal Management
 document.getElementById('btn-settings').addEventListener('click', (e) => {
   e.stopPropagation();
-  openSettings();
+  window.pulseAPI.openSettings();
 });
 
 document.getElementById('modal-close').addEventListener('click', (e) => {
@@ -271,45 +291,64 @@ function closeSettings() {
 }
 
 
+let feedbackTimer = null;
+function settingsFeedback(message) {
+  const feedback = document.getElementById('settings-feedback');
+  clearTimeout(feedbackTimer);
+  feedback.textContent = message;
+  feedback.hidden = false;
+  feedbackTimer = setTimeout(() => { feedback.hidden = true; }, 6000);
+}
+
 document.getElementById('btn-save-settings').addEventListener('click', async (e) => {
   e.stopPropagation();
-  const dockSide = document.querySelector('input[name="dockSide"]:checked').value;
-  const countdownMode = document.querySelector('input[name="countdownMode"]:checked').value;
-  const demoMode = document.querySelector('input[name="demoMode"]:checked').value === 'true';
-
-  const kimiKey = (document.getElementById('input-kimi-key')?.value || '').trim();
-  const glmKey = (document.getElementById('input-glm-key')?.value || '').trim();
-  const deepseekKey = (document.getElementById('input-deepseek-key')?.value || '').trim();
-
-  currentConfig.dockSide = dockSide;
-  currentConfig.countdownMode = countdownMode;
-  currentConfig.demoMode = demoMode;
-  currentConfig.apiKeys = {
-    kimi: kimiKey,
-    glm: glmKey,
-    deepseek: deepseekKey
-  };
-
-  if (currentConfig.providers) {
-    currentConfig.providers.forEach(p => {
-      const mappedId = p.id === 'claudeCode' ? 'claude' : p.id.toLowerCase();
-      const chk = document.getElementById(`chk-${mappedId}`);
-      if (chk) p.enabled = chk.checked;
-    });
+  const button = document.getElementById('btn-save-settings');
+  if (button.disabled) return;
+  button.disabled = true;
+  button.textContent = '保存中…';
+  try {
+    const next = {
+      ...currentConfig,
+      dockSide: document.querySelector('input[name="dockSide"]:checked').value,
+      countdownMode: document.querySelector('input[name="countdownMode"]:checked').value,
+      demoMode: document.querySelector('input[name="demoMode"]:checked').value === 'true',
+      apiKeys: {
+        kimi: (document.getElementById('input-kimi-key')?.value || '').trim(),
+        glm: (document.getElementById('input-glm-key')?.value || '').trim(),
+        deepseek: (document.getElementById('input-deepseek-key')?.value || '').trim(),
+      },
+      providers: currentConfig.providers?.map(p => {
+        const mappedId = p.id === 'claudeCode' ? 'claude' : p.id.toLowerCase();
+        const checkbox = document.getElementById(`chk-${mappedId}`);
+        return { ...p, enabled: checkbox ? checkbox.checked : p.enabled };
+      }),
+    };
+    currentConfig = await window.pulseAPI.saveConfig(next);
+    applyDockSide();
+    renderRings();
+    closeSettings();
+    settingsFeedback('已保存，数据正在后台刷新');
+  } catch (error) {
+    settingsFeedback(`保存失败：${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    button.disabled = false;
+    button.textContent = '保存生效';
   }
-
-  appEl.className = `dock-${dockSide}`;
-
-  await window.pulseAPI.saveConfig(currentConfig);
-
-  closeSettings();
-  await loadData();
 });
+
+// Direction changes must preserve the collapsed state shared with the native window.
+function applyDockSide() {
+  appEl.classList.remove('dock-left', 'dock-right', 'dock-top');
+  appEl.classList.add(`dock-${currentConfig.dockSide || 'right'}`);
+  hideDetailCard();
+  detailCardEl.style.left = '';
+  detailCardEl.style.top = '';
+}
 
 // Load metrics & config
 async function loadData() {
   currentConfig = await window.pulseAPI.getConfig();
-  appEl.className = `dock-${currentConfig.dockSide || 'right'}`;
+  applyDockSide();
 
   currentMetrics = await window.pulseAPI.getMetrics();
   renderRings();
@@ -327,7 +366,7 @@ window.pulseAPI.onMetricsUpdate((data) => {
 
 window.pulseAPI.onConfigUpdate((cfg) => {
   currentConfig = cfg;
-  appEl.className = `dock-${currentConfig.dockSide || 'right'}`;
+  applyDockSide();
   
   // Sync settings panel UI if it's open
   const radiosDock = document.querySelectorAll('input[name="dockSide"]');
@@ -336,15 +375,16 @@ window.pulseAPI.onConfigUpdate((cfg) => {
   renderRings();
 });
 
+window.pulseAPI.onExpandedUpdate((expanded) => {
+  appEl.classList.toggle('collapsed', !expanded);
+  if (!expanded) hideDetailCard();
+});
+
 if (window.pulseAPI.onToggleSettings) {
   window.pulseAPI.onToggleSettings(() => {
     toggleSettings();
   });
 }
-
-window.pulseAPI.onOpenSettingsModal(() => {
-  openSettings();
-});
 
 function toggleSettings() {
   if (settingsModalEl.classList.contains('hidden')) {

@@ -1,0 +1,30 @@
+[package]
+name = "pulse"
+version = "1.0.0"
+edition = "2021"
+description = "Cross-platform AI allowance monitor"
+license = "Apache-2.0"
+
+[lib]
+name = "pulse_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "=2.6.3", features = [] }
+
+[dependencies]
+tauri = { version = "=2.11.5", features = ["tray-icon", "macos-private-api"] }
+tauri-plugin-single-instance = "2.4.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["time", "sync", "net", "io-util", "process", "macros"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+rusqlite = { version = "0.38", features = ["bundled"] }
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
+dirs = "6"
+tempfile = "3"
+base64 = "0.22"
+sha2 = "0.10"
+rand = "0.9"
+open = "5"
+futures = "0.3"

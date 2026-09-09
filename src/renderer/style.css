@@ -674,3 +674,13 @@ body {
 .btn-primary:hover {
   background: #0369a1;
 }
+
+/* Keep complete quota details accessible when a provider returns many windows. */
+.detail-card { max-height: calc(100% - 20px); overflow-y: auto; }
+#app.dock-top .detail-card { max-height: calc(100% - 80px); }
+.provider-avatar { flex-shrink: 0; }
+.provider-avatar svg { width: 20px; height: 20px; }
+.pool-reset { color: var(--text-dim); font-size: 10px; margin-top: 4px; }
+.status-badge.limited { color: var(--accent-red); }
+#settings-feedback { position: fixed; top: 12px; left: 12px; right: 12px; z-index: 1000; padding: 10px; border-radius: 8px; background: #202530; color: #fff; font-size: 12px; overflow-wrap: anywhere; pointer-events: none; }
+#btn-save-settings:disabled { opacity: .65; cursor: wait; }

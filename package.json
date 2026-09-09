@@ -1,13 +1,14 @@
 {
   "name": "pulse-win",
   "version": "1.0.0",
-  "description": "A lightweight, elegant screen-edge monitor for AI coding allowances on Windows",
-  "main": "src/main/index.js",
+  "description": "Cross-platform AI allowance monitor powered by Tauri",
   "scripts": {
-    "start": "electron .",
-    "dev": "electron .",
-    "pack": "electron-builder --dir",
-    "build": "electron-builder"
+    "start": "tauri dev",
+    "dev": "tauri dev",
+    "pack": "tauri build --no-bundle",
+    "build": "tauri build",
+    "build:frontend": "node scripts/build-frontend.mjs",
+    "test": "node --test tests/*.test.cjs"
   },
   "keywords": [
     "pulse",
@@ -21,26 +22,7 @@
   "author": "",
   "license": "Apache-2.0",
   "devDependencies": {
-    "electron": "^34.2.0",
-    "electron-builder": "^25.1.8",
-    "electron-packager": "^17.1.2"
+    "@tauri-apps/cli": "2.11.4"
   },
-  "build": {
-    "appId": "com.pulse.win",
-    "productName": "Pulse",
-    "directories": {
-      "output": "dist"
-    },
-    "win": {
-      "icon": "assets/icon.ico",
-      "target": "nsis"
-    },
-    "nsis": {
-      "oneClick": true,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": false,
-      "shortcutName": "Pulse",
-      "runAfterFinish": true
-    }
-  }
+  "packageManager": "pnpm@11.20.0"
 }

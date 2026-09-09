@@ -1,0 +1,42 @@
+name: Desktop checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install Linux native dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libssl-dev libxdo-dev librsvg2-dev libayatana-appindicator3-dev libdbus-1-dev
+      - name: Install build tools
+        run: |
+          npm install -g pnpm@11.20.0
+          rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          rustup default stable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:frontend
+      - run: pnpm test
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+      - name: Verify isolated smoke profile
+        env:
+          PULSE_TEST_CONFIG: ${{ runner.temp }}/pulse-smoke/config.json
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked smoke_profile_blocks_credentials_and_network -- --ignored
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked -- -D warnings
+      - run: pnpm build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pulse-${{ runner.os }}
+          path: src-tauri/target/release/bundle/
