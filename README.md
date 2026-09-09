@@ -13,6 +13,8 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
+安装依赖时会启用仓库内的 Git hook；每次提交前自动运行完整 `test` 脚本。
+
 ```sh
 pnpm test
 pnpm typecheck

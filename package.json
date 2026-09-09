@@ -11,7 +11,8 @@
     "build": "tauri build",
     "build:frontend": "vite build",
     "test": "node --test tests/*.test.cjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepare": "git config core.hooksPath .githooks"
   },
   "keywords": [
     "pulse",

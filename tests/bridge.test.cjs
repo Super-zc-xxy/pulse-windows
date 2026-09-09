@@ -2,6 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
+const path = require('node:path');
 test('bridge forwards commands and cancels pending event registration', async () => {
   const calls = []; let finish; let handler; let stopped = 0;
   const window = { __TAURI__: {
@@ -26,7 +27,7 @@ test('bridge forwards commands and cancels pending event registration', async ()
 
 test('Vite build emits both pages with the bridge before React', async () => {
   const {execFileSync}=require('node:child_process');
-  execFileSync('corepack',['pnpm','build:frontend']);
+  execFileSync(process.execPath,[path.resolve(__dirname,'../node_modules/vite/bin/vite.js'),'build']);
   const built=fs.readFileSync('dist/frontend/index.html','utf8');
   assert.ok(built.indexOf('src="./pulse.js"')<built.indexOf('type="module"'));
   assert.ok(fs.existsSync('dist/frontend/accounts.html'));

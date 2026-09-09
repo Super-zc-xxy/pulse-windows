@@ -2,6 +2,12 @@
 
 日期：2026-09-08。以下是开发现场记录，不代表 SPEC 已全部完成。
 
+## 2026-09-09 Windows 测试启动与提交前检查
+
+- 根因：`tests/bridge.test.cjs` 在测试进程内直接启动 `corepack`，但 Windows CI 只全局安装了 `pnpm`，Node 24 环境没有可解析的 `corepack.exe`，因此 Vite 尚未运行就报 `spawnSync corepack ENOENT`。
+- 修复：测试改用当前 `process.execPath` 启动项目本地的 Vite CLI，不再依赖全局 `corepack`；依赖安装通过 `prepare` 启用 `.githooks/pre-commit`，提交前通过 npm 运行完整 `test` 脚本。
+- 验证：实际执行 pre-commit hook，12/12 测试通过；`npm run typecheck`、`npm run build:frontend` 和 `git diff --check` 通过。
+
 ## 2026-09-09 React 前端重构
 
 - 主悬浮窗与设置窗已迁移到 React + TypeScript，由 Vite 8 多页面构建；`pulse.js` 在构建产物中先于 React 模块执行。

@@ -1,5 +1,7 @@
 # 实施与验收
 
+- [x] 修复 Windows CI 中测试直接依赖 `corepack` 的问题，并启用提交前测试 hook。
+
 - [x] 兼容桥与 Tauri 启动：七个旧命令、事件取消竞态、renderer 无改动；node --test tests/bridge.test.cjs 和 cargo check。
 - [x] 配置与账户窗口（依赖启动）：验证非法配置、保存失败保留旧值、凭据不回传；cargo test。
 - [x] Cursor 原生实现及夹具检查（依赖配置）：三平台 SQLite 路径、TEXT/BLOB/WAL、会话过期、禁止重定向；解析及 SQLite 临时库测试。
