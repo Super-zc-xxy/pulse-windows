@@ -108,10 +108,11 @@ jobs:
           PULSE_TEST_CONFIG: ${{ runner.temp }}/pulse-smoke/config.json
         run: cargo test --manifest-path src-tauri/Cargo.toml --locked smoke_profile_blocks_credentials_and_network -- --ignored
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets -- -D warnings
-      - name: Verify tag matches app version
+      - name: Prepare release version
         env:
           RELEASE_TAG: ${{ github.ref_name }}
-        run: node -e "const version = require('./src-tauri/tauri.conf.json').version; if (process.env.RELEASE_TAG !== 'v' + version) { console.error('Expected tag v' + version + ', got ' + process.env.RELEASE_TAG); process.exit(1) }"
+        run: >-
+          node -e "const fs = require('node:fs'); const tag = process.env.RELEASE_TAG; if (!/^v\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.test(tag)) { console.error('Invalid release tag ' + tag); process.exit(1) } fs.writeFileSync('src-tauri/tauri.release.conf.json', JSON.stringify({ version: tag.slice(1) }))"
       - name: Build and publish release
         uses: tauri-apps/tauri-action@action-v1.0.0
         env:
@@ -123,4 +124,4 @@ jobs:
           generateReleaseNotes: true
           releaseDraft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
-          args: ${{ matrix.args }}
+          args: ${{ matrix.args }} --config src-tauri/tauri.release.conf.json

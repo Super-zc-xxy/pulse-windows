@@ -28,7 +28,7 @@ Apple Silicon 上若 Node 在 Rosetta 中运行、Rust 为原生 arm64，请明�
 pnpm exec tauri build --target aarch64-apple-darwin --no-sign
 ```
 
-构建产物位于 `src-tauri/target/release/bundle/`；显式指定目标时位于 `src-tauri/target/<target>/release/bundle/`。`.github/workflows/desktop.yml` 在 PR 和 `main` 推送时只运行三平台质量检查，不生成安装包；只有推送与应用版本一致的 tag（如稳定版 `v1.0.0` 或 Beta 版 `v1.1.0-beta.1`）才会创建 GitHub Release，发布 macOS Apple Silicon/Intel、Windows x64 和 Ubuntu x64 安装包。带预发布后缀的 tag 会自动标记为 GitHub Prerelease。
+构建产物位于 `src-tauri/target/release/bundle/`；显式指定目标时位于 `src-tauri/target/<target>/release/bundle/`。`.github/workflows/desktop.yml` 在 PR 和 `main` 推送时只运行三平台质量检查，不生成安装包；只有推送合法的 tag（如稳定版 `v1.0.0` 或 Beta 版 `v1.1.0-beta.1`）才会使用 tag 版本创建 GitHub Release，发布 macOS Apple Silicon/Intel、Windows x64 和 Ubuntu x64 安装包。带预发布后缀的 tag 会自动标记为 GitHub Prerelease。
 
 macOS CI 产物使用 ad-hoc 签名，但未使用 Apple Developer 证书及公证；Windows 产物也未做 Authenticode 签名。正式对外分发前仍需配置对应平台的签名凭据。
 
