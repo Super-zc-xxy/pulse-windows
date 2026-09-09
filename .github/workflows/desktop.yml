@@ -35,7 +35,7 @@ jobs:
         os: [macos-latest, ubuntu-22.04, windows-latest]
     runs-on: ${{ matrix.os }}
     env:
-      APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && '-' || '' }}
+      APPLE_SIGNING_IDENTITY: "-"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -89,7 +89,7 @@ jobs:
             args: ""
     runs-on: ${{ matrix.os }}
     env:
-      APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && '-' || '' }}
+      APPLE_SIGNING_IDENTITY: "-"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
