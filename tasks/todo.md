@@ -26,3 +26,12 @@
 - [x] shadcn 设置窗：通用设置和平台设置全部使用组件，默认仅展开第一平台，不展示额度数据；验证保存成功/失败、认证操作和键盘交互。
 - [ ] 前端完成检查：`pnpm test`、`pnpm typecheck`、`pnpm build:frontend`、`pnpm build`，记录实际窗口证据。
   - 前三项、release `--no-bundle`、debug `.app` 和实际隔离窗口已通过；默认 `pnpm build` 仍在已知的 x64 DMG 封装脚本失败，明确 arm64 CI 构建受本机 x64 Node / arm64 Rust 下嵌套 pnpm 版本检查阻断。
+
+## 登录与侧边栏补充
+
+- [x] 按上游 Pulse 修正 Codex 设备码和 Claude Code 动态 loopback 登录；验证协议单测与取消路径。
+- [x] 侧边栏按 enabled 展示，缺少鉴权时提供定向“去配置”；验证 Node 契约、typecheck、前端构建和隔离 Tauri 窗口。
+
+## 设置自动保存
+
+- [x] 移除页面级保存按钮，设置变更即时持久化且不全量重载；失败保留输入并显示错误。

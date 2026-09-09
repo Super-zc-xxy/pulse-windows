@@ -18,6 +18,7 @@ pub struct AppState {
     pub revision: std::sync::atomic::AtomicU64,
     pub refresh: tokio::sync::Mutex<()>,
     pub attempts: Mutex<auth::login::Attempts>,
+    pub settings_target: Mutex<Option<String>>,
     pub dragging: std::sync::atomic::AtomicBool,
     pub move_sequence: std::sync::atomic::AtomicU64,
 }
@@ -143,8 +144,27 @@ fn set_window_height(app: tauri::AppHandle, height: f64) -> Result<(), String> {
     desktop::position(&app)
 }
 #[tauri::command]
-fn open_settings(app: tauri::AppHandle) -> Result<(), String> {
-    desktop::settings(&app)
+fn open_settings(app: tauri::AppHandle, provider: Option<String>) -> Result<(), String> {
+    if let Some(provider) = provider.as_deref() {
+        auth::validate_provider(provider)?;
+    }
+    *app.state::<AppState>()
+        .settings_target
+        .lock()
+        .map_err(|_| "Settings target lock failed")? = provider.clone();
+    desktop::settings(&app)?;
+    if let Some(provider) = provider {
+        let _ = app.emit_to("settings", "focus-provider", provider);
+    }
+    Ok(())
+}
+#[tauri::command]
+fn get_settings_target(state: tauri::State<AppState>) -> Result<Option<String>, String> {
+    Ok(state
+        .settings_target
+        .lock()
+        .map_err(|_| "Settings target lock failed")?
+        .clone())
 }
 #[tauri::command]
 fn quit_app(app: tauri::AppHandle) {
@@ -166,7 +186,7 @@ fn get_provider_capabilities() -> Vec<Value> {
 }
 fn provider_capabilities() -> Vec<Value> {
     config::PROVIDERS.iter().map(|(id,name,_)|json!({"id":id,"name":name,"apiKey":!["cursor","antigravity"].contains(id),
-        "login":(["codex","claudeCode","kimi","antigravity"].contains(id)),"loginStatus":if *id=="cursor" {"使用已登录的桌面客户端"} else if *id=="antigravity" {"Google OAuth 登录；运行中的 Antigravity 桌面会话仍可作为数据回退"} else if ["glm","deepseek"].contains(id) {"登录协议待验证，尚未实现"} else {"系统浏览器登录 · 尚待真实账户验收"}})).collect()
+        "login":(["codex","claudeCode","kimi","antigravity"].contains(id)),"loginStatus":if *id=="codex" {"OpenAI 设备码登录 · 尚待真实账户验收"} else if *id=="claudeCode" {"系统浏览器 OAuth 登录 · 尚待真实账户验收"} else if *id=="cursor" {"使用已登录的桌面客户端"} else if *id=="antigravity" {"Google OAuth 登录；运行中的 Antigravity 桌面会话仍可作为数据回退"} else if ["glm","deepseek"].contains(id) {"登录协议待验证，尚未实现"} else {"系统浏览器登录 · 尚待真实账户验收"}})).collect()
 }
 #[tauri::command]
 fn get_auth_status() -> Vec<Value> {
@@ -265,7 +285,7 @@ fn initialize_store(app: &tauri::AppHandle) -> Result<config::Store, String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
-            if let Err(e) = open_settings(app.clone()) {
+            if let Err(e) = open_settings(app.clone(), None) {
                 eprintln!("{e}");
             }
         }))
@@ -277,6 +297,7 @@ pub fn run() {
             set_expanded,
             set_window_height,
             open_settings,
+            get_settings_target,
             quit_app,
             start_drag,
             get_provider_capabilities,
@@ -295,6 +316,7 @@ pub fn run() {
                 revision: std::sync::atomic::AtomicU64::new(0),
                 refresh: tokio::sync::Mutex::new(()),
                 attempts: Mutex::new(std::collections::HashMap::new()),
+                settings_target: Mutex::new(None),
                 dragging: std::sync::atomic::AtomicBool::new(false),
                 move_sequence: std::sync::atomic::AtomicU64::new(0),
             });

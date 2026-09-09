@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { RefreshCw, Save } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -16,8 +16,9 @@ export function AccountsApp() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [openProviders, setOpenProviders] = useState<string[]>([])
 
-  const load = async () => {
+  const load = async (target?: string | null) => {
     const [nextConfig, nextCapabilities, nextAuth] = await Promise.all([
       pulseApi.getConfig(),
       pulseApi.getProviderCapabilities(),
@@ -26,6 +27,7 @@ export function AccountsApp() {
     setConfig(nextConfig)
     setCapabilities(nextCapabilities)
     setAuth(nextAuth)
+    setOpenProviders((current) => current.length ? current : [target || nextCapabilities[0]?.id].filter(Boolean) as string[])
   }
 
   const action = async (work: () => Promise<void>, success?: string) => {
@@ -45,8 +47,18 @@ export function AccountsApp() {
     }
   }
 
+  const updateConfig = async (nextConfig: PulseConfig) => {
+    setConfig(nextConfig)
+    setError('')
+    try {
+      await pulseApi.saveConfig(nextConfig)
+    } catch (reason) {
+      setError(`自动保存失败：${String(reason)}`)
+    }
+  }
+
   useEffect(() => {
-    void load().catch((reason) => setError(`加载失败：${String(reason)}`))
+    void pulseApi.getSettingsTarget().then(load).catch((reason) => setError(`加载失败：${String(reason)}`))
     const stopAuth = pulseApi.onAuthUpdate(setAuth)
     const stopLogin = pulseApi.onLoginUpdate((event) => {
       setMessage(event.message)
@@ -56,9 +68,14 @@ export function AccountsApp() {
       ))
       void load().catch((reason) => setError(String(reason)))
     })
+    const stopFocusProvider = pulseApi.onFocusProvider((provider) => {
+      setOpenProviders((current) => current.includes(provider) ? current : [...current, provider])
+      requestAnimationFrame(() => document.getElementById(`provider-${provider}`)?.scrollIntoView({ block: 'center' }))
+    })
     return () => {
       stopAuth()
       stopLogin()
+      stopFocusProvider()
     }
   }, [])
 
@@ -83,19 +100,16 @@ export function AccountsApp() {
     {(message || error) && <div className={error ? 'feedback error' : 'feedback'} role={error ? 'alert' : 'status'} aria-live="polite">
       {error || message}
     </div>}
-    <GeneralSettings config={config} onChange={setConfig} />
+    <GeneralSettings config={config} onChange={(nextConfig) => void updateConfig(nextConfig)} />
     <div className="section-heading">
-      <div><h2>平台设置</h2><p>按需展开平台，配置启用状态、凭据与登录方式。</p></div>
-      <Button id="save-settings" disabled={busy} onClick={() => action(async () => {
-        setConfig(await pulseApi.saveConfig(config))
-      }, '设置已保存')}><Save aria-hidden />{busy ? '保存中…' : '保存设置'}</Button>
+      <div><h2>平台设置</h2><p>更改会自动保存；凭据仍需使用对应的登录或保存按钮。</p></div>
     </div>
     <Card><CardContent className="provider-list">
       {capabilities.length === 0 ? <p className="loading-state">没有可配置的平台</p> : (
-        <Accordion type="multiple" defaultValue={[capabilities[0]?.id]}>
+        <Accordion type="multiple" value={openProviders} onValueChange={setOpenProviders}>
           {capabilities.map((provider) => {
             const state = auth.find((item) => item.id === provider.id)
-            return <AccordionItem key={provider.id} value={provider.id}>
+            return <AccordionItem id={`provider-${provider.id}`} key={provider.id} value={provider.id}>
               <AccordionTrigger><span className="provider-trigger">
                 <span>{provider.name}</span>
                 <Badge className={state?.configured ? 'status-ready' : 'status-idle'}>{state?.configured ? '已配置' : '未配置'}</Badge>
@@ -106,7 +120,7 @@ export function AccountsApp() {
                 config={config}
                 attemptId={attempts[provider.id]}
                 busy={busy}
-                onConfigChange={setConfig}
+                onConfigChange={(nextConfig) => void updateConfig(nextConfig)}
                 onSaveKey={(id, key) => action(() => pulseApi.saveApiKey(id, key), 'API Key 已保存')}
                 onLogout={(id) => action(() => pulseApi.logout(id), '凭据已清除')}
                 onLogin={(id) => action(async () => {

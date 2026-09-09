@@ -14,20 +14,19 @@
   window.pulseAPI = Object.freeze({
     getMetrics: () => invoke('get_metrics'),
     getConfig: () => invoke('get_config'),
-    saveConfig: cfg => invoke('save_config', { cfg }).then(saved => {
-      document.querySelectorAll?.('input[type="password"]').forEach(input => { input.value = ''; });
-      return saved;
-    }),
+    saveConfig: cfg => invoke('save_config', { cfg }),
     setExpanded: expanded => invoke('set_expanded', { expanded }).then(actual => {
       if (typeof actual === 'boolean') document.getElementById('app')?.classList.toggle('collapsed', !actual);
     }),
     setWindowHeight: height => invoke('set_window_height', { height }),
-    openSettings: () => invoke('open_settings'),
+    openSettings: provider => invoke('open_settings', { provider: provider ?? null }),
+    getSettingsTarget: () => invoke('get_settings_target'),
     quitApp: () => invoke('quit_app'),
     onMetricsUpdate: callback => subscribe('metrics-update', callback),
     onConfigUpdate: callback => subscribe('config-update', callback),
     onExpandedUpdate: callback => subscribe('expanded-update', callback),
     onToggleSettings: callback => subscribe('toggle-settings', callback),
+    onFocusProvider: callback => subscribe('focus-provider', callback),
     getProviderCapabilities: () => invoke('get_provider_capabilities'),
     getAuthStatus: () => invoke('get_auth_status'),
     getProviderStatus: () => invoke('get_provider_status'),

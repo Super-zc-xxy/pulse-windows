@@ -59,12 +59,14 @@ export interface PulseApi {
   saveConfig(config: PulseConfig): Promise<PulseConfig>
   setExpanded(expanded: boolean): Promise<boolean>
   setWindowHeight(height: number): Promise<void>
-  openSettings(): Promise<void>
+  openSettings(provider?: string): Promise<void>
+  getSettingsTarget(): Promise<string | null>
   quitApp(): Promise<void>
   onMetricsUpdate(callback: (metrics: Metric[]) => void): () => void
   onConfigUpdate(callback: (config: PulseConfig) => void): () => void
   onExpandedUpdate(callback: (expanded: boolean) => void): () => void
   onToggleSettings(callback: () => void): () => void
+  onFocusProvider(callback: (provider: string) => void): () => void
   getProviderCapabilities(): Promise<ProviderCapability[]>
   getAuthStatus(): Promise<AuthStatus[]>
   getProviderStatus(): Promise<unknown[]>

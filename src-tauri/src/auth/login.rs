@@ -32,11 +32,11 @@ fn settings(
             1455,
         )),
         "claudeCode" => Ok((
-            "https://claude.ai/oauth/authorize",
+            "https://claude.com/cai/oauth/authorize",
             "https://platform.claude.com/v1/oauth/token",
             "9d1c250a-e61b-44d9-88ed-5944d1962f5e",
-            "http://localhost:54545/callback",
-            54545,
+            "",
+            0,
         )),
         "kimi" => Ok((
             "https://auth.kimi.com/api/oauth/device_authorization",
@@ -72,6 +72,112 @@ fn credential(v: &Value) -> Result<Credential, String> {
         device_id: String::new(),
         project_id: String::new(),
     })
+}
+
+struct OpenAIPrompt {
+    user_code: String,
+    device_auth_id: String,
+    interval: u64,
+}
+
+fn openai_prompt(value: &Value) -> Result<OpenAIPrompt, String> {
+    Ok(OpenAIPrompt {
+        user_code: value["user_code"]
+            .as_str()
+            .or_else(|| value["usercode"].as_str())
+            .filter(|value| !value.is_empty())
+            .ok_or("Device login did not return a user code")?
+            .into(),
+        device_auth_id: value["device_auth_id"]
+            .as_str()
+            .filter(|value| !value.is_empty())
+            .ok_or("Device login did not return an attempt ID")?
+            .into(),
+        interval: value["interval"].as_u64().unwrap_or(5).clamp(1, 60),
+    })
+}
+
+fn openai_grant(status: u16, value: &Value) -> Result<Option<(String, String)>, String> {
+    if matches!(status, 403 | 404) {
+        return Ok(None);
+    }
+    if status != 200 {
+        return Err(format!("Device authorization failed (HTTP {status})"));
+    }
+    let code = value["authorization_code"]
+        .as_str()
+        .filter(|value| !value.is_empty())
+        .ok_or("Device authorization did not return a code")?;
+    let verifier = value["code_verifier"]
+        .as_str()
+        .filter(|value| !value.is_empty())
+        .ok_or("Device authorization did not return a proof key")?;
+    Ok(Some((code.into(), verifier.into())))
+}
+
+async fn response_with_status(request: reqwest::RequestBuilder) -> Result<(u16, Value), String> {
+    let reply = request
+        .send()
+        .await
+        .map_err(|_| "Device authorization request failed")?;
+    let status = reply.status().as_u16();
+    if reply
+        .content_length()
+        .is_some_and(|length| length > 2_000_000)
+    {
+        return Err("Provider response too large".into());
+    }
+    let body = reply
+        .bytes()
+        .await
+        .map_err(|_| "Cannot read device authorization response")?;
+    if body.len() > 2_000_000 {
+        return Err("Provider response too large".into());
+    }
+    let value = match serde_json::from_slice(&body) {
+        Ok(value) => value,
+        Err(_) if matches!(status, 403 | 404) => Value::Null,
+        Err(_) => return Err("Invalid device authorization response".into()),
+    };
+    Ok((status, value))
+}
+
+async fn openai_flow(app: &tauri::AppHandle, attempt: &str) -> Result<Credential, String> {
+    let (_, token_url, client_id, _, _) = settings("codex")?;
+    let prompt = openai_prompt(
+        &response(
+            client()?
+                .post("https://auth.openai.com/api/accounts/deviceauth/usercode")
+                .json(&json!({"client_id":client_id})),
+        )
+        .await?,
+    )?;
+    app.emit("login-update",json!({"attemptId":attempt,"status":"pending","message":format!("请在浏览器登录后输入设备码：{}",prompt.user_code)})).map_err(|_|"Cannot emit login status")?;
+    open::that("https://auth.openai.com/codex/device").map_err(|_| "Cannot open system browser")?;
+    loop {
+        let (status, value) = response_with_status(
+            client()?
+                .post("https://auth.openai.com/api/accounts/deviceauth/token")
+                .json(&json!({"device_auth_id":prompt.device_auth_id.as_str(),"user_code":prompt.user_code.as_str()})),
+        )
+        .await?;
+        if let Some((code, verifier)) = openai_grant(status, &value)? {
+            return credential(
+                &response(client()?.post(token_url).form(&[
+                    ("grant_type", "authorization_code"),
+                    ("code", code.as_str()),
+                    (
+                        "redirect_uri",
+                        "https://auth.openai.com/deviceauth/callback",
+                    ),
+                    ("client_id", client_id),
+                    ("code_verifier", verifier.as_str()),
+                ]))
+                .await?,
+            );
+        }
+        tokio::time::sleep(Duration::from_secs(prompt.interval)).await;
+    }
 }
 fn callback(request: &str, path: &str, state: &str) -> Result<String, String> {
     let line = request.lines().next().ok_or("Invalid callback")?;
@@ -255,7 +361,7 @@ pub async fn start(app: tauri::AppHandle, provider: String) -> Result<Value, Str
         return Err("Login disabled in isolated smoke profile".into());
     }
     let (auth_url, _, id, redirect, port) = settings(&provider)?;
-    let listener = if provider != "kimi" {
+    let listener = if matches!(provider.as_str(), "claudeCode" | "antigravity") {
         Some(
             TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))
                 .await
@@ -285,13 +391,18 @@ pub async fn start(app: tauri::AppHandle, provider: String) -> Result<Value, Str
     tauri::async_runtime::spawn(async move {
         let work = async {
             if let Some(listener) = listener {
-                let redirect = if provider == "antigravity" {
+                let redirect = if matches!(provider.as_str(), "antigravity" | "claudeCode") {
                     format!(
-                        "http://localhost:{}/oauth-callback",
+                        "http://localhost:{}{}",
                         listener
                             .local_addr()
                             .map_err(|_| "Cannot read login callback port")?
-                            .port()
+                            .port(),
+                        if provider == "antigravity" {
+                            "/oauth-callback"
+                        } else {
+                            "/callback"
+                        }
                     )
                 } else {
                     redirect.to_string()
@@ -310,20 +421,23 @@ pub async fn start(app: tauri::AppHandle, provider: String) -> Result<Value, Str
                     ]);
                 } else {
                     let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
-                    url.query_pairs_mut().extend_pairs([("client_id",id),("response_type","code"),("redirect_uri",redirect.as_str()),("state",&state),("code_challenge",&challenge),("code_challenge_method","S256"),
-                        ("scope",if provider=="codex" {"openid email profile offline_access"} else {"user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload"})]);
-                }
-                if provider == "codex" {
                     url.query_pairs_mut().extend_pairs([
-                        ("prompt", "login"),
-                        ("id_token_add_organizations", "true"),
-                        ("codex_cli_simplified_flow", "true"),
+                        ("client_id", id),
+                        ("response_type", "code"),
+                        ("redirect_uri", redirect.as_str()),
+                        ("state", &state),
+                        ("code_challenge", &challenge),
+                        ("code_challenge_method", "S256"),
+                        ("scope", "user:profile"),
                     ]);
-                } else if provider == "claudeCode" {
+                }
+                if provider == "claudeCode" {
                     url.query_pairs_mut().append_pair("code", "true");
                 }
                 open::that(url.as_str()).map_err(|_| "Cannot open system browser")?;
                 browser_flow(&provider, listener, &state, &verifier, &redirect).await
+            } else if provider == "codex" {
+                openai_flow(&handle, &attempt).await
             } else {
                 kimi_flow(&handle, &attempt).await
             }
@@ -369,6 +483,12 @@ pub async fn refresh(provider: &str, old: &Credential) -> Result<Credential, Str
     let (_, url, id, _, _) = settings(provider)?;
     let mut data =
         json!({"grant_type":"refresh_token","client_id":id,"refresh_token":old.refresh_token});
+    if provider == "codex" {
+        data["scope"] =
+            json!("openid profile email offline_access api.connectors.read api.connectors.invoke");
+    } else if provider == "claudeCode" {
+        data["scope"] = json!("user:profile");
+    }
     if provider == "antigravity" {
         data["client_secret"] = json!(ANTIGRAVITY_CLIENT_SECRET);
     }
@@ -424,5 +544,36 @@ mod tests {
         cancel(&mut attempts, "test").unwrap();
         assert!(attempts.is_empty());
         assert_eq!(rx.try_recv(), Ok(()));
+    }
+
+    #[test]
+    fn matches_current_pulse_codex_and_claude_login_contracts() {
+        let (claude_authorize, _, _, claude_redirect, claude_port) =
+            settings("claudeCode").unwrap();
+        assert_eq!(claude_authorize, "https://claude.com/cai/oauth/authorize");
+        assert!(claude_redirect.is_empty());
+        assert_eq!(claude_port, 0);
+
+        let prompt = openai_prompt(&json!({
+            "user_code": "ABCD-EFGH",
+            "device_auth_id": "device-id",
+            "interval": 2
+        }))
+        .unwrap();
+        assert_eq!(prompt.user_code, "ABCD-EFGH");
+        assert_eq!(prompt.device_auth_id, "device-id");
+        assert_eq!(prompt.interval, 2);
+
+        assert!(openai_grant(403, &json!({})).unwrap().is_none());
+        assert!(openai_grant(404, &json!({})).unwrap().is_none());
+        assert_eq!(
+            openai_grant(
+                200,
+                &json!({"authorization_code":"code","code_verifier":"proof"})
+            )
+            .unwrap(),
+            Some(("code".into(), "proof".into()))
+        );
+        assert!(openai_grant(200, &json!({})).is_err());
     }
 }

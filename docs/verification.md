@@ -75,3 +75,16 @@ DMG 封装已通过：在获准使用系统磁盘映像工具后，`CI=true pnpm
 - 主监控窗创建时保持置顶并接收失焦后的首次鼠标事件；失焦和重新定位时再次确认置顶层级。窗口管理器不支持置顶时仍继续完成位置更新。
 - macOS 最终构建在 Chrome 前台时仍显示 Pulse 边缘入口。自动化工具没有独立的无按键 hover 操作，因此精确 `mouseenter` 手势仍需人工复核。
 - Rust 12 项、Node 7 项通过，1 项隔离网络测试按标记跳过；Clippy、rustfmt、差异检查及 macOS arm64 `.app`/DMG 构建通过。
+
+## 2026-09-09 登录协议与侧边栏启用项
+
+- 对照 qunqin24/Pulse 当前实现，将 Codex 从不可用的 loopback OAuth 改为 OpenAI 设备码：请求用户码、轮询 403/404、取得授权码与证明密钥后交换 token。Claude Code 改用 `claude.com/cai/oauth/authorize`、动态 loopback 端口和 `user:profile` scope。
+- 主侧边栏以 `config.providers[].enabled` 生成槽位。无有效额度时保留平台：缺少鉴权显示待配置卡片，已有鉴权但读取失败显示暂不可用；“去配置”通过受校验的 provider ID 唤醒设置窗并展开对应 Accordion。
+- `pnpm test` 10 项、Rust 14 项（1 项隔离网络测试按标记跳过）、TypeScript、Vite、Clippy `-D warnings`、rustfmt 和 debug `.app` 构建通过。隔离窗口实际显示仅两个已启用平台；隔离模式会强制演示指标，因此待配置卡片的真实点击定位由桥接/命令/Accordion 契约覆盖，仍需非隔离无凭据环境人工复核。
+- 未发起真实 OAuth，也未读取或记录用户凭据。Codex、Claude Code、Kimi、Antigravity 登录及刷新仍分别需要真实账号验收；GLM/DeepSeek 登录协议继续保持未实现。
+
+## 2026-09-09 设置自动保存与闪动修复
+
+- 根因：页面级保存走通用操作流程，持久化后再次全量加载配置、能力和鉴权状态；桥接层还会命令式清空受 React 控制的密码输入，随后被 React 恢复，形成可见闪动。
+- 显示、数据和平台启用设置现为乐观更新后立即保存，不再显示页面级保存按钮或成功后全量加载。失败保留当前选择并显示“自动保存失败”。
+- API Key、登录、退出及 Cursor 自定义目录仍保留显式按钮。Node 12 项、TypeScript 和 Vite 构建通过。

@@ -83,9 +83,21 @@ export function UsageRing({ metric, mode, onInspect }: UsageRingProps) {
 4. 主窗保持三向停靠、展开/折叠、指标更新、详情定位和设置入口行为。
 5. 设置窗保持显示配置、数据源启用、Key 保存/清除、登录/取消、GLM 站点和 Cursor 目录；不展示额度、余额或配额窗口等数据结果。
 6. 每个平台使用可收起/展开的设置区，初次渲染只展开平台列表第一项，之后允许用户独立切换。
-7. 加载、错误、保存中状态可见；按钮与表单可通过键盘使用，图标按钮有可访问名称。
+7. 加载与错误状态可见，自动保存失败时保留当前值；按钮与表单可通过键盘使用，图标按钮有可访问名称。
 8. `pnpm test`、`pnpm typecheck`、`pnpm build:frontend` 通过；实际 Tauri WebView 运行检查无控制台错误。
 
 ## Open Questions
 
 - 无阻塞问题。默认保持当前视觉与双窗口信息架构；不在本次重构中重新设计产品或引入路由。
+
+## 2026-09-09 登录与侧边栏补充
+
+- Codex 登录采用上游 Pulse 当前的 OpenAI 设备码流程；Claude Code 使用 `claude.com/cai/oauth/authorize`、动态 loopback 端口和只读 `user:profile` scope。继续保留 state、PKCE、取消、超时和系统凭据库存储边界。
+- 侧边栏以 `config.providers[].enabled` 为唯一显示开关。已启用但没有可展示额度的平台仍占一个位置：缺少鉴权时显示“尚未配置鉴权”和“去配置”，已配置但读取失败时显示暂不可用；不得因 `getMetrics` 没有结果而消失。
+- `openSettings(provider)` 必须打开或唤醒设置窗并展开对应平台。新窗口从 URL hash 读取目标，已打开窗口通过事件接收目标。
+- 验收：Node 契约测试、Rust 登录协议单测、typecheck、前端构建和实际 Tauri 设置跳转通过；真实账号授权仍需人工完成，不以源码实现代替验收。
+
+## 2026-09-09 设置自动保存
+
+- 显示选项、数据模式、平台启用状态和 GLM 站点在变更后立即保存，不显示页面级“保存设置”按钮，也不在成功后重新加载整页。
+- 自动保存失败时保留当前表单值并显示错误；API Key、登录、退出和 Cursor 自定义目录继续使用显式操作按钮。
