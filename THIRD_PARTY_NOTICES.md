@@ -5,6 +5,8 @@ Pulse desktop provider and authentication adapters were independently written in
 - qunqin24/Pulse, commit 7a9480ddf05fe725fa237cc36d6b8c1013591b5b (Apache-2.0): Cursor and Antigravity data formats; Codex, Claude and Kimi quota routes. Project: https://github.com/qunqin24/Pulse . This repository also uses Apache-2.0, included in LICENSE. Rust/platform implementations are modifications from the reference behavior, not upstream-verified implementations.
 - router-for-me/CLIProxyAPI, commit d198db54d4c4886c99b21488d54fc576933019a3 plus the Antigravity OAuth sources on `main` reviewed 2026-09-09 (MIT): Codex/Claude PKCE, Kimi device authorization, and Antigravity Google OAuth/project discovery protocol constants. Original license follows.
 
+The Antigravity Google OAuth client credentials are public-client protocol constants inherited from the referenced desktop authentication flow. They are distributed with the application and must not be treated as confidential user credentials; user access and refresh tokens remain stored in the operating system credential store.
+
 MIT License
 
 Copyright (c) 2025-2005.9 Luis Pater
