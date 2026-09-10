@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "pulse-local",
+  "description": "Local UI can subscribe to backend events; filesystem, shell and HTTP stay in Rust.",
+  "windows": ["main", "accounts"],
+  "permissions": ["core:event:allow-listen", "core:event:allow-unlisten"]
+}

@@ -1,0 +1,127 @@
+name: Desktop CI/CD
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: desktop-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    permissions:
+      contents: read
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - run: npm install -g pnpm@11.20.0
+      - run: pnpm audit --audit-level high
+
+  ci:
+    if: github.ref_type != 'tag'
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Install Linux native dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libssl-dev libxdo-dev librsvg2-dev libayatana-appindicator3-dev libdbus-1-dev patchelf xdg-utils
+      - name: Install build tools
+        run: |
+          npm install -g pnpm@11.20.0
+          rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          rustup default stable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:frontend
+      - run: pnpm test
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+      - name: Verify isolated smoke profile
+        env:
+          PULSE_TEST_CONFIG: ${{ runner.temp }}/pulse-smoke/config.json
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked smoke_profile_blocks_credentials_and_network -- --ignored
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets -- -D warnings
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: audit
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            args: --target aarch64-apple-darwin
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            args: --target x86_64-apple-darwin
+          - os: ubuntu-22.04
+            target: ""
+            args: ""
+          - os: windows-latest
+            target: ""
+            args: --bundles nsis
+    runs-on: ${{ matrix.os }}
+    env:
+      APPLE_SIGNING_IDENTITY: "-"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Install Linux native dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libssl-dev libxdo-dev librsvg2-dev libayatana-appindicator3-dev libdbus-1-dev patchelf xdg-utils
+      - name: Install build tools
+        run: |
+          npm install -g pnpm@11.20.0
+          rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          rustup default stable
+      - name: Install Rust target
+        if: matrix.target != ''
+        run: rustup target add ${{ matrix.target }}
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:frontend
+      - run: pnpm test
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+      - name: Verify isolated smoke profile
+        env:
+          PULSE_TEST_CONFIG: ${{ runner.temp }}/pulse-smoke/config.json
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked smoke_profile_blocks_credentials_and_network -- --ignored
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets -- -D warnings
+      - name: Prepare release version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: >-
+          node -e "const fs = require('node:fs'); const tag = process.env.RELEASE_TAG; if (!/^v\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.test(tag)) { console.error('Invalid release tag ' + tag); process.exit(1) } fs.writeFileSync('src-tauri/tauri.release.conf.json', JSON.stringify({ version: tag.slice(1) }))"
+      - name: Build and publish release
+        uses: tauri-apps/tauri-action@action-v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Pulse ${{ github.ref_name }}
+          releaseBody: Download the installer for your operating system from the assets below.
+          generateReleaseNotes: true
+          releaseDraft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          args: ${{ matrix.args }} --config src-tauri/tauri.release.conf.json

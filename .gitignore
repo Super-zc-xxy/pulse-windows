@@ -3,6 +3,9 @@ node_modules/
 
 # Production / Build Output
 dist/
+src-tauri/target/
+src-tauri/gen/
+.pnpm-store/
 
 # Logs
 *.log
